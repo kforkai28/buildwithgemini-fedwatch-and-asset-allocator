@@ -144,5 +144,54 @@ gcloud run deploy fedwatch-frontend \
 
 ---
 
+## 🌐 Replicating Outside Google Cloud Environment
+
+For AI agents or developers running this codebase outside of Google Cloud Platform (e.g. on AWS, Azure, local workstations, or alternative cloud providers), follow this replication guide:
+
+### 1. Model Provider Adaptation
+* **Default Setup:** Uses `gemini-2.5-flash` via `google.adk.models.Gemini` with Vertex AI backend.
+* **Non-GCP Gemini Access:** Set `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com/) and initialize `genai.Client(api_key=os.environ["GEMINI_API_KEY"])` rather than relying on GCP Application Default Credentials (`ADC`).
+* **Framework Translation:** The system prompt, ReAct flow, and tool schemas in [`app/agent.py`](app/agent.py) map directly to LangChain (`ChatGoogleGenerativeAI` / `create_react_agent`), LlamaIndex, or AutoGen.
+
+### 2. Market Data Tools (Zero GCP Dependencies)
+* [`fetch_live_treasury_yields`](app/market_tools.py) uses `yfinance` to scrape US Treasury benchmarks (`^IRX`, `^FVX`, `^TNX`, `^TYX`). It has **zero GCP dependencies** and works out-of-the-box in any standard Python environment.
+* [`fetch_fred_macro_series`](app/market_tools.py) interacts directly with the St. Louis Fed HTTP API. Set `export FRED_API_KEY="..."` to enable official economic data queries anywhere.
+
+### 3. Replacing Google Cloud Firestore
+* **In-Memory / SQLite Fallback:** [`app/firestore_tools.py`](app/firestore_tools.py) can be swapped for a local SQLite or PostgreSQL database.
+* **Firestore Local Emulator:** Run the official Firestore emulator via Docker:
+  ```bash
+  docker run -d -p 8080:8080 -e FIRESTORE_PROJECT_ID="local-fedwatch" google/cloud-sdk:emulators gcloud beta emulators firestore start --host-port=0.0.0.0:8080
+  export FIRESTORE_EMULATOR_HOST="localhost:8080"
+  ```
+  When `FIRESTORE_EMULATOR_HOST` is defined, `google-cloud-firestore` automatically routes queries locally without authentication.
+* **Document Schema Reference:**
+  * `macro_indicators/{id}`: `{ id: str, current_value: float, trend: str, fomc_stance: str, summary: str }`
+  * `portfolio_models/{id}`: `{ id: str, name: str, risk_profile: str, target_allocations: map, target_duration: str, rationale: str }`
+  * `user_portfolios/{user_id}`: `{ user_id: str, portfolio_name: str, risk_level: str, allocations: map, notes: str }`
+
+### 4. Replacing Cloud Storage & Imagen
+* **Local File System / S3 / MinIO:** In [`app/image_tools.py`](app/image_tools.py), replace `storage.Client` with standard disk writes (`open(f"static/infographics/{uuid}.png", "wb")`) or an AWS S3/MinIO bucket.
+* **Alternative Image Generators:** If Vertex AI Imagen isn't accessible, swap the image call with standard Stable Diffusion, DALL-E 3 (`openai.images.generate`), or client-side chart generation (e.g., Python `matplotlib` / `seaborn` returning static PNGs).
+
+### 5. Running the Complete Self-Contained Stack
+```bash
+# 1. Install dependencies
+uv sync
+
+# 2. Configure environment
+export GEMINI_API_KEY="your-gemini-api-key"
+export FIRESTORE_EMULATOR_HOST="localhost:8080"
+
+# 3. Seed local store
+uv run python seed_firestore.py
+
+# 4. Launch terminal frontend
+export PORT=8080
+uv run python frontend/main.py
+```
+
+---
+
 ## License
 Licensed under the Apache License, Version 2.0.
