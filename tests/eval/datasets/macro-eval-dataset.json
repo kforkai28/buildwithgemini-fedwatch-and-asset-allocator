@@ -1,0 +1,43 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "treasury_curve_spread",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "What is the current 10-year Treasury yield and the 10Y-3M spread?"}]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [{"text": "The 10-year Treasury yield (^TNX) and 3-month T-bill yield (^IRX) were retrieved from live market data, indicating a positive 10Y-3M spread reflecting an upward sloping curve."}]
+        }
+      }
+    },
+    {
+      "eval_case_id": "portfolio_model_query",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "What portfolio model do you recommend for balanced growth, and what are its target asset weights?"}]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [{"text": "The balanced growth model consists of approximately 60% equities, 30% fixed income / treasuries, and 10% alternatives/cash."}]
+        }
+      }
+    },
+    {
+      "eval_case_id": "macro_indicator_lookup",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "What is the current stance on core PCE inflation in our macro database?"}]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [{"text": "Core PCE inflation is tracked in the database, noting the FOMC policy posture and whether inflation is approaching the 2% target."}]
+        }
+      }
+    }
+  ]
+}

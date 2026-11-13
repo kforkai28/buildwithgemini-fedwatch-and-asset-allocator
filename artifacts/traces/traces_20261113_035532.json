@@ -1,0 +1,1054 @@
+{
+  "eval_cases": [
+    {
+      "prompt": {
+        "parts": [
+          {
+            "text": "What is the current 10-year Treasury yield and the 10Y-3M spread?"
+          }
+        ],
+        "role": "user"
+      },
+      "responses": [
+        {
+          "response": {
+            "parts": [
+              {
+                "text": "Here is the current Treasury curve benchmark snapshot:\n\n### **US Treasury Benchmark Yields & Curve Dynamics**\n\n| Tenor / Metric | Yield / Spread | Status / Interpretation |\n| :--- | :---: | :--- |\n| **10-Year Treasury Yield (^TNX)** | **5.103%** | Benchmark long-term borrowing rate |\n| **3-Month T-Bill (^IRX)** | **4.128%** | Front-end policy/cash rate anchor |\n| **10Y – 3M Yield Spread** | **+97.5 bps (+0.975%)** | **Normal / Upwardly Sloping** |\n\n---\n\n### **Macro Interpretation & FOMC Context**\n* **Positive Sloping Curve (+97.5 bps):** A positive 10Y–3M spread of nearly 100 basis points indicates the curve is in a **normal/steepening posture**, removing the immediate signal of recessionary inversion that historically preceded downturns.\n* **Term Premium & Growth/Inflation Expectations:** The elevated 10Y yield (~5.10%) reflects firm economic activity, elevated debt issuance, and market anticipation that monetary policy rates will remain higher for longer before settling into a neutral range.\n\n*Disclaimer: Macroeconomic analysis and yield indicators are provided for institutional analysis and educational purposes.*"
+              }
+            ],
+            "role": "model"
+          }
+        }
+      ],
+      "reference": {
+        "response": {
+          "parts": [
+            {
+              "text": "The 10-year Treasury yield (^TNX) and 3-month T-bill yield (^IRX) were retrieved from live market data, indicating a positive 10Y-3M spread reflecting an upward sloping curve."
+            }
+          ],
+          "role": "model"
+        }
+      },
+      "eval_case_id": "treasury_curve_spread",
+      "agent_data": {
+        "agents": {
+          "root_agent": {
+            "agent_id": "root_agent",
+            "agent_type": "LlmAgent",
+            "description": "",
+            "instruction": "You are the FedWatch & Asset Allocator agent.\nYour primary role is to serve as an institutional macro strategist and financial advisor:\n1. Macro Monitoring: Retrieve current Treasury yields across the curve and query macroeconomic indicators (Fed Funds, Core PCE, Unemployment, Yield Curve spreads).\n2. FOMC Contextualization: Analyze hawkish vs dovish policy postures, rate expectations, and yield curve shifts (steepening vs inversion).\n3. Asset Allocation: Recommend tactical portfolio models (conservative income, balanced growth, macro momentum) aligned with current macro conditions and user risk tolerance.\n4. Response Format:\n   - ALWAYS provide a clear, beautifully structured markdown conversational reply in the chat.\n   - Use clean tables, bold metrics, bullet points, and section headers to present macro rates, spreads, and portfolio weights.\n   - When tools return data, immediately synthesize and interpret the results in your natural language response.\n5. Tool Guidance:\n   - For live Treasury yields and 10Y-3M spreads, ALWAYS call `fetch_live_treasury_yields()`.\n   - For stored macro indicators and FOMC posture summaries, use `get_macro_indicator()` or `list_macro_indicators()`.\n   - For portfolio models and target asset weights, use `get_portfolio_model()` or `list_portfolio_models()`.\n   - If user asks for deep official Fed economic series (e.g., FRED data like balance sheet QT or Core PCE), use `fetch_fred_macro_series()`. If no key is configured, politely explain how to set FRED_API_KEY while noting that live yields are fully operational via market data.\n   - When users request a chart, visual graphic, or diagram, call `generate_macro_infographic(prompt=...)` and embed the returned image URL using markdown `![Infographic](image_url)`.\n   - When users decide on an allocation, persist it using `save_user_portfolio_allocation()`.\n6. Guardrails: Remind users that macroeconomic scenarios and model allocations are for educational and strategic analysis purposes.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Fetches current US Treasury benchmark yields across the curve and calculates the 10Y-3M and 10Y-5Y spreads.\n\nBenchmarks retrieved:\n  - 3-Month T-Bill (^IRX)\n  - 5-Year Treasury Yield (^FVX)\n  - 10-Year Treasury Yield (^TNX)\n  - 30-Year Treasury Bond (^TYX)\n  \nReturns:\n    A dictionary with benchmark yields, calculated curve spreads, inversion status, and timestamp.",
+                    "name": "fetch_live_treasury_yields",
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Optional add-on tool: Fetches official macroeconomic time-series from St. Louis Fed FRED API.\n\nCommon series IDs:\n  - 'T10Y2Y' (10-Year Treasury Constant Maturity Minus 2-Year Treasury)\n  - 'FEDFUNDS' (Federal Funds Effective Rate)\n  - 'PCEPILFE' (Core PCE Inflation YoY)\n  - 'WALCL' (Federal Reserve Total Assets - Balance Sheet / QT)\n  - 'UNRATE' (Civilian Unemployment Rate)\n  \nArgs:\n    series_id: The FRED series identifier (e.g., 'T10Y2Y', 'FEDFUNDS', 'PCEPILFE').\n    api_key: Optional API key. If omitted, will check FRED_API_KEY environment variable.\n    \nReturns:\n    Recent observations, units, and series metadata or informative setup instruction.",
+                    "name": "fetch_fred_macro_series",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "series_id": {
+                          "title": "Series Id",
+                          "type": "string"
+                        },
+                        "api_key": {
+                          "type": "string",
+                          "default": null,
+                          "title": "Api Key",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "series_id"
+                      ],
+                      "title": "fetch_fred_macro_seriesParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves current macroeconomic data and FOMC stance for a specific indicator.\n\nArgs:\n    indicator_id: The ID of the indicator (e.g., 'fed_funds_rate', '10y_2y_yield_spread', \n                  'core_pce_inflation', 'unemployment_rate').\n                  \nReturns:\n    A dictionary with the indicator details, value, trend, and summary.",
+                    "name": "get_macro_indicator",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "indicator_id": {
+                          "title": "Indicator Id",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "indicator_id"
+                      ],
+                      "title": "get_macro_indicatorParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Lists all available macroeconomic indicators tracked in the database.\n\nReturns:\n    A list of dictionaries with macro indicators and FOMC posture summaries.",
+                    "name": "list_macro_indicators",
+                    "response_json_schema": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates or logs a macroeconomic indicator with new observation values and FOMC posture.\n\nArgs:\n    indicator_id: Unique indicator ID (e.g., 'fed_funds_rate', 'cpi_yoy').\n    current_value: The numerical value (e.g. 5.25 for rate, 2.7 for inflation).\n    trend: Directional movement (e.g., 'rising', 'falling', 'stable', 'steepening').\n    fomc_stance: Interpretation relative to FOMC policy (e.g., 'restrictive', 'neutral', 'accommodative').\n    summary: Qualitative explanation of the reading.\n    \nReturns:\n    Status confirmation dictionary.",
+                    "name": "update_macro_indicator",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "indicator_id": {
+                          "title": "Indicator Id",
+                          "type": "string"
+                        },
+                        "current_value": {
+                          "title": "Current Value",
+                          "type": "number"
+                        },
+                        "trend": {
+                          "title": "Trend",
+                          "type": "string"
+                        },
+                        "fomc_stance": {
+                          "title": "Fomc Stance",
+                          "type": "string"
+                        },
+                        "summary": {
+                          "title": "Summary",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "indicator_id",
+                        "current_value",
+                        "trend",
+                        "fomc_stance",
+                        "summary"
+                      ],
+                      "title": "update_macro_indicatorParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Fetches an asset allocation portfolio template based on risk profile and macro posture.\n\nArgs:\n    model_id: ID of the portfolio model ('conservative_income', 'balanced_growth', 'aggressive_macro_momentum').\n    \nReturns:\n    Dictionary with asset class weights, target duration, and investment thesis.",
+                    "name": "get_portfolio_model",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "model_id": {
+                          "title": "Model Id",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "model_id"
+                      ],
+                      "title": "get_portfolio_modelParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Lists all standard asset allocation portfolio models available in the system.\n\nReturns:\n    A list of available portfolio allocation strategies.",
+                    "name": "list_portfolio_models",
+                    "response_json_schema": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves or updates a user's customized asset allocation plan based on advisor recommendations.\n\nArgs:\n    user_id: Identifier for the user or session.\n    portfolio_name: Label for the portfolio strategy.\n    risk_level: Risk classification ('low', 'moderate', 'high').\n    allocations: Dictionary of asset class percentages (e.g. {'equities': 60.0, 'treasuries': 30.0, 'cash': 10.0}).\n    notes: Strategic notes and FOMC rationale.\n    \nReturns:\n    Status confirmation dictionary.",
+                    "name": "save_user_portfolio_allocation",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "user_id": {
+                          "title": "User Id",
+                          "type": "string"
+                        },
+                        "portfolio_name": {
+                          "title": "Portfolio Name",
+                          "type": "string"
+                        },
+                        "risk_level": {
+                          "title": "Risk Level",
+                          "type": "string"
+                        },
+                        "allocations": {
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "title": "Allocations",
+                          "type": "object"
+                        },
+                        "notes": {
+                          "title": "Notes",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "user_id",
+                        "portfolio_name",
+                        "risk_level",
+                        "allocations",
+                        "notes"
+                      ],
+                      "title": "save_user_portfolio_allocationParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Generates an infographic or visual chart representing macroeconomic trends or portfolio allocations.\n\nThe generated visual is uploaded to the public Cloud Storage bucket and its public HTTPS URL is returned.\n\nArgs:\n    prompt: Detailed description of the image to generate (e.g. 'Asset allocation diagram with 60% equities and 40% bonds, minimalist vector style', 'Yield curve steepening diagram').\n    \nReturns:\n    Dictionary with image status, public HTTPS URL, and prompt description.",
+                    "name": "generate_macro_infographic",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "prompt": {
+                          "title": "Prompt",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "prompt"
+                      ],
+                      "title": "generate_macro_infographicParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "turn_id": "turn_0",
+            "events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "call_16006217843666860763",
+                        "args": {},
+                        "name": "fetch_live_treasury_yields"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "call_16006217843666860763",
+                        "name": "fetch_live_treasury_yields",
+                        "response": {
+                          "status": "success",
+                          "benchmark_rates": {
+                            "3_month_tbill_pct": 4.128,
+                            "5_year_treasury_pct": 4.945,
+                            "10_year_treasury_pct": 5.103,
+                            "30_year_treasury_pct": 5.433
+                          },
+                          "yield_curve_spreads": {
+                            "10y_minus_3m_spread_bps": 97.5,
+                            "10y_minus_5y_spread_bps": 15.8,
+                            "curve_posture": "normal/steep"
+                          },
+                          "as_of_date": "2026-11-12",
+                          "summary": "10Y Treasury stands at 5.103%, 3M T-bill at 4.128%. The 10Y-3M spread is 0.975% (normal/steep)."
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "text": "Here is the current Treasury curve benchmark snapshot:\n\n### **US Treasury Benchmark Yields & Curve Dynamics**\n\n| Tenor / Metric | Yield / Spread | Status / Interpretation |\n| :--- | :---: | :--- |\n| **10-Year Treasury Yield (^TNX)** | **5.103%** | Benchmark long-term borrowing rate |\n| **3-Month T-Bill (^IRX)** | **4.128%** | Front-end policy/cash rate anchor |\n| **10Y – 3M Yield Spread** | **+97.5 bps (+0.975%)** | **Normal / Upwardly Sloping** |\n\n---\n\n### **Macro Interpretation & FOMC Context**\n* **Positive Sloping Curve (+97.5 bps):** A positive 10Y–3M spread of nearly 100 basis points indicates the curve is in a **normal/steepening posture**, removing the immediate signal of recessionary inversion that historically preceded downturns.\n* **Term Premium & Growth/Inflation Expectations:** The elevated 10Y yield (~5.10%) reflects firm economic activity, elevated debt issuance, and market anticipation that monetary policy rates will remain higher for longer before settling into a neutral range.\n\n*Disclaimer: Macroeconomic analysis and yield indicators are provided for institutional analysis and educational purposes.*"
+                    }
+                  ],
+                  "role": "model"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "prompt": {
+        "parts": [
+          {
+            "text": "What portfolio model do you recommend for balanced growth, and what are its target asset weights?"
+          }
+        ],
+        "role": "user"
+      },
+      "responses": [
+        {
+          "response": {
+            "parts": [
+              {
+                "text": "For investors seeking a balance between long-term capital appreciation and downside protection against interest rate fluctuations, we recommend the **Balanced Multi-Asset Growth** model.\n\nThis strategy modernizes the classic 60/40 allocation by incorporating a tactical short-duration cash/Treasury buffer and inflation-hedging real assets to navigate shifting FOMC policy regimes.\n\n---\n\n### **Target Asset Weights**\n\n| Asset Class | Ticker/Proxy Examples | Target Weight | Role in Portfolio |\n| :--- | :--- | :---: | :--- |\n| **U.S. Large-Cap Equities** | S&P 500 (VOO, SPY) | **40.0%** | Core long-term equity risk premium & earnings growth |\n| **Core Aggregate Bonds** | US Aggregate Bond (AGG, BND) | **30.0%** | Deflation hedge, fixed coupon income, and ballast against equity drawdowns |\n| **International Equities** | Developed & EM (VXUS, VEA) | **15.0%** | Geographic diversification & valuation tailwinds |\n| **Short-Term Treasuries / Cash Equivalents** | 1–3M / 1–3Y T-Bills (BIL, SHY) | **10.0%** | Capital preservation, liquidity, and yield capture without duration risk |\n| **Real Assets / Commodities** | Commodities / REITs (PDBC, VNQ) | **5.0%** | Hedging against sticky inflation spikes and real yield shocks |\n| **Total** | | **100.0%** | |\n\n---\n\n### **Strategy & Macro Profile**\n\n- **Risk Classification:** Moderate\n- **Target Fixed Income Duration:** **~4.5 Years** (Intermediate duration)\n- **Macro Alignment:**\n  - **Yield Curve Protection:** Blending 30% intermediate core bonds with 10% short-term Treasuries keeps overall portfolio duration moderate (~4.5 years), reducing vulnerability to unexpected yield curve steepening or \"higher-for-longer\" rate environments.\n  - **Equity Diversification:** A 55% total equity allocation (40% U.S. + 15% International) provides solid participation in corporate earnings expansions while mitigating single-country concentration risk.\n  - **Tactical Dry Powder:** The 10% allocation to short-term Treasuries offers attractive risk-free cash yields and immediate liquidity to rebalance into equities or longer-duration bonds if market dislocations occur.\n\n---\n\n*Disclaimer: Macroeconomic scenarios, model allocations, and strategic frameworks are provided for educational and illustrative purposes only and should not be construed as personalized investment advice.*"
+              }
+            ],
+            "role": "model"
+          }
+        }
+      ],
+      "reference": {
+        "response": {
+          "parts": [
+            {
+              "text": "The balanced growth model consists of approximately 60% equities, 30% fixed income / treasuries, and 10% alternatives/cash."
+            }
+          ],
+          "role": "model"
+        }
+      },
+      "eval_case_id": "portfolio_model_query",
+      "agent_data": {
+        "agents": {
+          "root_agent": {
+            "agent_id": "root_agent",
+            "agent_type": "LlmAgent",
+            "description": "",
+            "instruction": "You are the FedWatch & Asset Allocator agent.\nYour primary role is to serve as an institutional macro strategist and financial advisor:\n1. Macro Monitoring: Retrieve current Treasury yields across the curve and query macroeconomic indicators (Fed Funds, Core PCE, Unemployment, Yield Curve spreads).\n2. FOMC Contextualization: Analyze hawkish vs dovish policy postures, rate expectations, and yield curve shifts (steepening vs inversion).\n3. Asset Allocation: Recommend tactical portfolio models (conservative income, balanced growth, macro momentum) aligned with current macro conditions and user risk tolerance.\n4. Response Format:\n   - ALWAYS provide a clear, beautifully structured markdown conversational reply in the chat.\n   - Use clean tables, bold metrics, bullet points, and section headers to present macro rates, spreads, and portfolio weights.\n   - When tools return data, immediately synthesize and interpret the results in your natural language response.\n5. Tool Guidance:\n   - For live Treasury yields and 10Y-3M spreads, ALWAYS call `fetch_live_treasury_yields()`.\n   - For stored macro indicators and FOMC posture summaries, use `get_macro_indicator()` or `list_macro_indicators()`.\n   - For portfolio models and target asset weights, use `get_portfolio_model()` or `list_portfolio_models()`.\n   - If user asks for deep official Fed economic series (e.g., FRED data like balance sheet QT or Core PCE), use `fetch_fred_macro_series()`. If no key is configured, politely explain how to set FRED_API_KEY while noting that live yields are fully operational via market data.\n   - When users request a chart, visual graphic, or diagram, call `generate_macro_infographic(prompt=...)` and embed the returned image URL using markdown `![Infographic](image_url)`.\n   - When users decide on an allocation, persist it using `save_user_portfolio_allocation()`.\n6. Guardrails: Remind users that macroeconomic scenarios and model allocations are for educational and strategic analysis purposes.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Fetches current US Treasury benchmark yields across the curve and calculates the 10Y-3M and 10Y-5Y spreads.\n\nBenchmarks retrieved:\n  - 3-Month T-Bill (^IRX)\n  - 5-Year Treasury Yield (^FVX)\n  - 10-Year Treasury Yield (^TNX)\n  - 30-Year Treasury Bond (^TYX)\n  \nReturns:\n    A dictionary with benchmark yields, calculated curve spreads, inversion status, and timestamp.",
+                    "name": "fetch_live_treasury_yields",
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Optional add-on tool: Fetches official macroeconomic time-series from St. Louis Fed FRED API.\n\nCommon series IDs:\n  - 'T10Y2Y' (10-Year Treasury Constant Maturity Minus 2-Year Treasury)\n  - 'FEDFUNDS' (Federal Funds Effective Rate)\n  - 'PCEPILFE' (Core PCE Inflation YoY)\n  - 'WALCL' (Federal Reserve Total Assets - Balance Sheet / QT)\n  - 'UNRATE' (Civilian Unemployment Rate)\n  \nArgs:\n    series_id: The FRED series identifier (e.g., 'T10Y2Y', 'FEDFUNDS', 'PCEPILFE').\n    api_key: Optional API key. If omitted, will check FRED_API_KEY environment variable.\n    \nReturns:\n    Recent observations, units, and series metadata or informative setup instruction.",
+                    "name": "fetch_fred_macro_series",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "series_id": {
+                          "title": "Series Id",
+                          "type": "string"
+                        },
+                        "api_key": {
+                          "type": "string",
+                          "default": null,
+                          "title": "Api Key",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "series_id"
+                      ],
+                      "title": "fetch_fred_macro_seriesParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves current macroeconomic data and FOMC stance for a specific indicator.\n\nArgs:\n    indicator_id: The ID of the indicator (e.g., 'fed_funds_rate', '10y_2y_yield_spread', \n                  'core_pce_inflation', 'unemployment_rate').\n                  \nReturns:\n    A dictionary with the indicator details, value, trend, and summary.",
+                    "name": "get_macro_indicator",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "indicator_id": {
+                          "title": "Indicator Id",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "indicator_id"
+                      ],
+                      "title": "get_macro_indicatorParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Lists all available macroeconomic indicators tracked in the database.\n\nReturns:\n    A list of dictionaries with macro indicators and FOMC posture summaries.",
+                    "name": "list_macro_indicators",
+                    "response_json_schema": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates or logs a macroeconomic indicator with new observation values and FOMC posture.\n\nArgs:\n    indicator_id: Unique indicator ID (e.g., 'fed_funds_rate', 'cpi_yoy').\n    current_value: The numerical value (e.g. 5.25 for rate, 2.7 for inflation).\n    trend: Directional movement (e.g., 'rising', 'falling', 'stable', 'steepening').\n    fomc_stance: Interpretation relative to FOMC policy (e.g., 'restrictive', 'neutral', 'accommodative').\n    summary: Qualitative explanation of the reading.\n    \nReturns:\n    Status confirmation dictionary.",
+                    "name": "update_macro_indicator",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "indicator_id": {
+                          "title": "Indicator Id",
+                          "type": "string"
+                        },
+                        "current_value": {
+                          "title": "Current Value",
+                          "type": "number"
+                        },
+                        "trend": {
+                          "title": "Trend",
+                          "type": "string"
+                        },
+                        "fomc_stance": {
+                          "title": "Fomc Stance",
+                          "type": "string"
+                        },
+                        "summary": {
+                          "title": "Summary",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "indicator_id",
+                        "current_value",
+                        "trend",
+                        "fomc_stance",
+                        "summary"
+                      ],
+                      "title": "update_macro_indicatorParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Fetches an asset allocation portfolio template based on risk profile and macro posture.\n\nArgs:\n    model_id: ID of the portfolio model ('conservative_income', 'balanced_growth', 'aggressive_macro_momentum').\n    \nReturns:\n    Dictionary with asset class weights, target duration, and investment thesis.",
+                    "name": "get_portfolio_model",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "model_id": {
+                          "title": "Model Id",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "model_id"
+                      ],
+                      "title": "get_portfolio_modelParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Lists all standard asset allocation portfolio models available in the system.\n\nReturns:\n    A list of available portfolio allocation strategies.",
+                    "name": "list_portfolio_models",
+                    "response_json_schema": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves or updates a user's customized asset allocation plan based on advisor recommendations.\n\nArgs:\n    user_id: Identifier for the user or session.\n    portfolio_name: Label for the portfolio strategy.\n    risk_level: Risk classification ('low', 'moderate', 'high').\n    allocations: Dictionary of asset class percentages (e.g. {'equities': 60.0, 'treasuries': 30.0, 'cash': 10.0}).\n    notes: Strategic notes and FOMC rationale.\n    \nReturns:\n    Status confirmation dictionary.",
+                    "name": "save_user_portfolio_allocation",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "user_id": {
+                          "title": "User Id",
+                          "type": "string"
+                        },
+                        "portfolio_name": {
+                          "title": "Portfolio Name",
+                          "type": "string"
+                        },
+                        "risk_level": {
+                          "title": "Risk Level",
+                          "type": "string"
+                        },
+                        "allocations": {
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "title": "Allocations",
+                          "type": "object"
+                        },
+                        "notes": {
+                          "title": "Notes",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "user_id",
+                        "portfolio_name",
+                        "risk_level",
+                        "allocations",
+                        "notes"
+                      ],
+                      "title": "save_user_portfolio_allocationParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Generates an infographic or visual chart representing macroeconomic trends or portfolio allocations.\n\nThe generated visual is uploaded to the public Cloud Storage bucket and its public HTTPS URL is returned.\n\nArgs:\n    prompt: Detailed description of the image to generate (e.g. 'Asset allocation diagram with 60% equities and 40% bonds, minimalist vector style', 'Yield curve steepening diagram').\n    \nReturns:\n    Dictionary with image status, public HTTPS URL, and prompt description.",
+                    "name": "generate_macro_infographic",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "prompt": {
+                          "title": "Prompt",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "prompt"
+                      ],
+                      "title": "generate_macro_infographicParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "turn_id": "turn_0",
+            "events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "call_599085736610701655",
+                        "args": {
+                          "model_id": "balanced_growth"
+                        },
+                        "name": "get_portfolio_model"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "call_599085736610701655",
+                        "name": "get_portfolio_model",
+                        "response": {
+                          "description": "Standard 60/40 orientation with tactical cash buffer to absorb rate volatility.",
+                          "id": "balanced_growth",
+                          "name": "Balanced Multi-Asset Growth",
+                          "risk_level": "moderate",
+                          "target_duration_years": 4.5,
+                          "allocation": {
+                            "real_assets": 5,
+                            "core_aggregate_bonds": 30,
+                            "us_large_cap_equities": 40,
+                            "international_equities": 15,
+                            "short_term_treasuries": 10
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "text": "For investors seeking a balance between long-term capital appreciation and downside protection against interest rate fluctuations, we recommend the **Balanced Multi-Asset Growth** model.\n\nThis strategy modernizes the classic 60/40 allocation by incorporating a tactical short-duration cash/Treasury buffer and inflation-hedging real assets to navigate shifting FOMC policy regimes.\n\n---\n\n### **Target Asset Weights**\n\n| Asset Class | Ticker/Proxy Examples | Target Weight | Role in Portfolio |\n| :--- | :--- | :---: | :--- |\n| **U.S. Large-Cap Equities** | S&P 500 (VOO, SPY) | **40.0%** | Core long-term equity risk premium & earnings growth |\n| **Core Aggregate Bonds** | US Aggregate Bond (AGG, BND) | **30.0%** | Deflation hedge, fixed coupon income, and ballast against equity drawdowns |\n| **International Equities** | Developed & EM (VXUS, VEA) | **15.0%** | Geographic diversification & valuation tailwinds |\n| **Short-Term Treasuries / Cash Equivalents** | 1–3M / 1–3Y T-Bills (BIL, SHY) | **10.0%** | Capital preservation, liquidity, and yield capture without duration risk |\n| **Real Assets / Commodities** | Commodities / REITs (PDBC, VNQ) | **5.0%** | Hedging against sticky inflation spikes and real yield shocks |\n| **Total** | | **100.0%** | |\n\n---\n\n### **Strategy & Macro Profile**\n\n- **Risk Classification:** Moderate\n- **Target Fixed Income Duration:** **~4.5 Years** (Intermediate duration)\n- **Macro Alignment:**\n  - **Yield Curve Protection:** Blending 30% intermediate core bonds with 10% short-term Treasuries keeps overall portfolio duration moderate (~4.5 years), reducing vulnerability to unexpected yield curve steepening or \"higher-for-longer\" rate environments.\n  - **Equity Diversification:** A 55% total equity allocation (40% U.S. + 15% International) provides solid participation in corporate earnings expansions while mitigating single-country concentration risk.\n  - **Tactical Dry Powder:** The 10% allocation to short-term Treasuries offers attractive risk-free cash yields and immediate liquidity to rebalance into equities or longer-duration bonds if market dislocations occur.\n\n---\n\n*Disclaimer: Macroeconomic scenarios, model allocations, and strategic frameworks are provided for educational and illustrative purposes only and should not be construed as personalized investment advice.*"
+                    }
+                  ],
+                  "role": "model"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "prompt": {
+        "parts": [
+          {
+            "text": "What is the current stance on core PCE inflation in our macro database?"
+          }
+        ],
+        "role": "user"
+      },
+      "responses": [
+        {
+          "response": {
+            "parts": [
+              {
+                "text": "Here is the current macroeconomic posture for **Core PCE Inflation** from our database:\n\n---\n\n### **Macro Indicator Overview: Core PCE Price Index (YoY)**\n\n| Metric | Detail |\n| :--- | :--- |\n| **Indicator Name** | Core PCE Price Index (YoY) |\n| **Current Reading** | **2.7%** |\n| **Observed Trend** | **Downward** 📉 |\n| **FOMC Stance** | **Progressing toward 2% target** |\n| **Category** | Inflation |\n| **Last Updated** | October 31, 2026 |\n\n---\n\n### **Key Takeaways & FOMC Context**\n\n* **Disinflationary Progress:** At **2.7%**, core inflation continues on a steady glide path toward the Federal Reserve's long-term **2.0% objective**.\n* **Sticky Components:** Shelter and housing services remain somewhat sticky, keeping the Fed vigilant against easing financial conditions prematurely.\n* **Policy Implications:** While restrictive policy has successfully exerted downward pressure on consumer prices, the FOMC maintains a data-dependent, measured approach toward rate adjustments until core inflation demonstrates sustained convergence to target.\n\n*Note: Macroeconomic scenarios and database indicators are provided for educational and strategic analysis purposes.*"
+              }
+            ],
+            "role": "model"
+          }
+        }
+      ],
+      "reference": {
+        "response": {
+          "parts": [
+            {
+              "text": "Core PCE inflation is tracked in the database, noting the FOMC policy posture and whether inflation is approaching the 2% target."
+            }
+          ],
+          "role": "model"
+        }
+      },
+      "eval_case_id": "macro_indicator_lookup",
+      "agent_data": {
+        "agents": {
+          "root_agent": {
+            "agent_id": "root_agent",
+            "agent_type": "LlmAgent",
+            "description": "",
+            "instruction": "You are the FedWatch & Asset Allocator agent.\nYour primary role is to serve as an institutional macro strategist and financial advisor:\n1. Macro Monitoring: Retrieve current Treasury yields across the curve and query macroeconomic indicators (Fed Funds, Core PCE, Unemployment, Yield Curve spreads).\n2. FOMC Contextualization: Analyze hawkish vs dovish policy postures, rate expectations, and yield curve shifts (steepening vs inversion).\n3. Asset Allocation: Recommend tactical portfolio models (conservative income, balanced growth, macro momentum) aligned with current macro conditions and user risk tolerance.\n4. Response Format:\n   - ALWAYS provide a clear, beautifully structured markdown conversational reply in the chat.\n   - Use clean tables, bold metrics, bullet points, and section headers to present macro rates, spreads, and portfolio weights.\n   - When tools return data, immediately synthesize and interpret the results in your natural language response.\n5. Tool Guidance:\n   - For live Treasury yields and 10Y-3M spreads, ALWAYS call `fetch_live_treasury_yields()`.\n   - For stored macro indicators and FOMC posture summaries, use `get_macro_indicator()` or `list_macro_indicators()`.\n   - For portfolio models and target asset weights, use `get_portfolio_model()` or `list_portfolio_models()`.\n   - If user asks for deep official Fed economic series (e.g., FRED data like balance sheet QT or Core PCE), use `fetch_fred_macro_series()`. If no key is configured, politely explain how to set FRED_API_KEY while noting that live yields are fully operational via market data.\n   - When users request a chart, visual graphic, or diagram, call `generate_macro_infographic(prompt=...)` and embed the returned image URL using markdown `![Infographic](image_url)`.\n   - When users decide on an allocation, persist it using `save_user_portfolio_allocation()`.\n6. Guardrails: Remind users that macroeconomic scenarios and model allocations are for educational and strategic analysis purposes.",
+            "tools": [
+              {
+                "function_declarations": [
+                  {
+                    "description": "Fetches current US Treasury benchmark yields across the curve and calculates the 10Y-3M and 10Y-5Y spreads.\n\nBenchmarks retrieved:\n  - 3-Month T-Bill (^IRX)\n  - 5-Year Treasury Yield (^FVX)\n  - 10-Year Treasury Yield (^TNX)\n  - 30-Year Treasury Bond (^TYX)\n  \nReturns:\n    A dictionary with benchmark yields, calculated curve spreads, inversion status, and timestamp.",
+                    "name": "fetch_live_treasury_yields",
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Optional add-on tool: Fetches official macroeconomic time-series from St. Louis Fed FRED API.\n\nCommon series IDs:\n  - 'T10Y2Y' (10-Year Treasury Constant Maturity Minus 2-Year Treasury)\n  - 'FEDFUNDS' (Federal Funds Effective Rate)\n  - 'PCEPILFE' (Core PCE Inflation YoY)\n  - 'WALCL' (Federal Reserve Total Assets - Balance Sheet / QT)\n  - 'UNRATE' (Civilian Unemployment Rate)\n  \nArgs:\n    series_id: The FRED series identifier (e.g., 'T10Y2Y', 'FEDFUNDS', 'PCEPILFE').\n    api_key: Optional API key. If omitted, will check FRED_API_KEY environment variable.\n    \nReturns:\n    Recent observations, units, and series metadata or informative setup instruction.",
+                    "name": "fetch_fred_macro_series",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "series_id": {
+                          "title": "Series Id",
+                          "type": "string"
+                        },
+                        "api_key": {
+                          "type": "string",
+                          "default": null,
+                          "title": "Api Key",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "series_id"
+                      ],
+                      "title": "fetch_fred_macro_seriesParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Retrieves current macroeconomic data and FOMC stance for a specific indicator.\n\nArgs:\n    indicator_id: The ID of the indicator (e.g., 'fed_funds_rate', '10y_2y_yield_spread', \n                  'core_pce_inflation', 'unemployment_rate').\n                  \nReturns:\n    A dictionary with the indicator details, value, trend, and summary.",
+                    "name": "get_macro_indicator",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "indicator_id": {
+                          "title": "Indicator Id",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "indicator_id"
+                      ],
+                      "title": "get_macro_indicatorParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Lists all available macroeconomic indicators tracked in the database.\n\nReturns:\n    A list of dictionaries with macro indicators and FOMC posture summaries.",
+                    "name": "list_macro_indicators",
+                    "response_json_schema": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Updates or logs a macroeconomic indicator with new observation values and FOMC posture.\n\nArgs:\n    indicator_id: Unique indicator ID (e.g., 'fed_funds_rate', 'cpi_yoy').\n    current_value: The numerical value (e.g. 5.25 for rate, 2.7 for inflation).\n    trend: Directional movement (e.g., 'rising', 'falling', 'stable', 'steepening').\n    fomc_stance: Interpretation relative to FOMC policy (e.g., 'restrictive', 'neutral', 'accommodative').\n    summary: Qualitative explanation of the reading.\n    \nReturns:\n    Status confirmation dictionary.",
+                    "name": "update_macro_indicator",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "indicator_id": {
+                          "title": "Indicator Id",
+                          "type": "string"
+                        },
+                        "current_value": {
+                          "title": "Current Value",
+                          "type": "number"
+                        },
+                        "trend": {
+                          "title": "Trend",
+                          "type": "string"
+                        },
+                        "fomc_stance": {
+                          "title": "Fomc Stance",
+                          "type": "string"
+                        },
+                        "summary": {
+                          "title": "Summary",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "indicator_id",
+                        "current_value",
+                        "trend",
+                        "fomc_stance",
+                        "summary"
+                      ],
+                      "title": "update_macro_indicatorParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Fetches an asset allocation portfolio template based on risk profile and macro posture.\n\nArgs:\n    model_id: ID of the portfolio model ('conservative_income', 'balanced_growth', 'aggressive_macro_momentum').\n    \nReturns:\n    Dictionary with asset class weights, target duration, and investment thesis.",
+                    "name": "get_portfolio_model",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "model_id": {
+                          "title": "Model Id",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "model_id"
+                      ],
+                      "title": "get_portfolio_modelParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Lists all standard asset allocation portfolio models available in the system.\n\nReturns:\n    A list of available portfolio allocation strategies.",
+                    "name": "list_portfolio_models",
+                    "response_json_schema": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Saves or updates a user's customized asset allocation plan based on advisor recommendations.\n\nArgs:\n    user_id: Identifier for the user or session.\n    portfolio_name: Label for the portfolio strategy.\n    risk_level: Risk classification ('low', 'moderate', 'high').\n    allocations: Dictionary of asset class percentages (e.g. {'equities': 60.0, 'treasuries': 30.0, 'cash': 10.0}).\n    notes: Strategic notes and FOMC rationale.\n    \nReturns:\n    Status confirmation dictionary.",
+                    "name": "save_user_portfolio_allocation",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "user_id": {
+                          "title": "User Id",
+                          "type": "string"
+                        },
+                        "portfolio_name": {
+                          "title": "Portfolio Name",
+                          "type": "string"
+                        },
+                        "risk_level": {
+                          "title": "Risk Level",
+                          "type": "string"
+                        },
+                        "allocations": {
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "title": "Allocations",
+                          "type": "object"
+                        },
+                        "notes": {
+                          "title": "Notes",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "user_id",
+                        "portfolio_name",
+                        "risk_level",
+                        "allocations",
+                        "notes"
+                      ],
+                      "title": "save_user_portfolio_allocationParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              },
+              {
+                "function_declarations": [
+                  {
+                    "description": "Generates an infographic or visual chart representing macroeconomic trends or portfolio allocations.\n\nThe generated visual is uploaded to the public Cloud Storage bucket and its public HTTPS URL is returned.\n\nArgs:\n    prompt: Detailed description of the image to generate (e.g. 'Asset allocation diagram with 60% equities and 40% bonds, minimalist vector style', 'Yield curve steepening diagram').\n    \nReturns:\n    Dictionary with image status, public HTTPS URL, and prompt description.",
+                    "name": "generate_macro_infographic",
+                    "parameters_json_schema": {
+                      "properties": {
+                        "prompt": {
+                          "title": "Prompt",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "prompt"
+                      ],
+                      "title": "generate_macro_infographicParams",
+                      "type": "object"
+                    },
+                    "response_json_schema": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    }
+                  }
+                ]
+              }
+            ],
+            "sub_agents": []
+          }
+        },
+        "turns": [
+          {
+            "turn_index": 0,
+            "turn_id": "turn_0",
+            "events": [
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "call_10407535491220011111",
+                        "args": {
+                          "indicator_id": "core_pce_inflation"
+                        },
+                        "name": "get_macro_indicator"
+                      }
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "call_10407535491220011111",
+                        "name": "get_macro_indicator",
+                        "response": {
+                          "category": "Inflation",
+                          "unit": "%",
+                          "name": "Core PCE Price Index YoY",
+                          "fomc_stance": "progressing toward 2% target",
+                          "trend": "downward",
+                          "current_value": 2.7,
+                          "summary": "Core PCE annualized rate declining gradually; housing services remaining somewhat sticky.",
+                          "id": "core_pce_inflation",
+                          "last_updated": "2026-10-31"
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              },
+              {
+                "author": "root_agent",
+                "content": {
+                  "parts": [
+                    {
+                      "text": "Here is the current macroeconomic posture for **Core PCE Inflation** from our database:\n\n---\n\n### **Macro Indicator Overview: Core PCE Price Index (YoY)**\n\n| Metric | Detail |\n| :--- | :--- |\n| **Indicator Name** | Core PCE Price Index (YoY) |\n| **Current Reading** | **2.7%** |\n| **Observed Trend** | **Downward** 📉 |\n| **FOMC Stance** | **Progressing toward 2% target** |\n| **Category** | Inflation |\n| **Last Updated** | October 31, 2026 |\n\n---\n\n### **Key Takeaways & FOMC Context**\n\n* **Disinflationary Progress:** At **2.7%**, core inflation continues on a steady glide path toward the Federal Reserve's long-term **2.0% objective**.\n* **Sticky Components:** Shelter and housing services remain somewhat sticky, keeping the Fed vigilant against easing financial conditions prematurely.\n* **Policy Implications:** While restrictive policy has successfully exerted downward pressure on consumer prices, the FOMC maintains a data-dependent, measured approach toward rate adjustments until core inflation demonstrates sustained convergence to target.\n\n*Note: Macroeconomic scenarios and database indicators are provided for educational and strategic analysis purposes.*"
+                    }
+                  ],
+                  "role": "model"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
