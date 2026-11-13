@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   :root {
     --primary: #1e3a8a;
@@ -178,6 +179,33 @@
   .bubble tr:nth-child(even) td {
     background: rgba(255, 255, 255, 0.02);
   }
+
+  /* Portfolio Donut Chart Container */
+  .chart-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .chart-card-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #93c5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    align-self: flex-start;
+  }
+  .chart-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+    height: 220px;
+  }
   .bubble p { margin: 0.4rem 0; }
   .bubble p:first-child { margin-top: 0; }
   .bubble p:last-child { margin-bottom: 0; }
@@ -341,6 +369,7 @@ form.addEventListener("submit", async (ev) => {
 
     if (combinedText) {
       b.innerHTML = marked.parse(combinedText);
+      renderPortfolioCharts(b);
     } else {
       b.textContent = "(No text reply returned)";
     }
@@ -349,6 +378,109 @@ form.addEventListener("submit", async (ev) => {
     b.textContent = "Error: " + e.message;
   }
 });
+
+function renderPortfolioCharts(container) {
+  const tables = container.querySelectorAll("table");
+  tables.forEach((table) => {
+    const headers = Array.from(table.querySelectorAll("th")).map(th => th.textContent.toLowerCase());
+    const hasWeight = headers.some(h => h.includes("weight") || h.includes("%") || h.includes("allocation"));
+    const hasAsset = headers.some(h => h.includes("asset") || h.includes("class") || h.includes("security") || h.includes("category"));
+
+    if (!hasWeight || !hasAsset) return;
+
+    const rows = Array.from(table.querySelectorAll("tbody tr, tr")).filter(r => !r.querySelector("th"));
+    const labels = [];
+    const dataValues = [];
+
+    rows.forEach(row => {
+      const cells = Array.from(row.querySelectorAll("td"));
+      if (cells.length < 2) return;
+      const labelText = cells[0].textContent.trim();
+      if (!labelText || labelText.toLowerCase().includes("total")) return;
+
+      // Extract percentage value from row cells
+      for (let i = 1; i < cells.length; i++) {
+        const txt = cells[i].textContent.trim();
+        const match = txt.match(/([0-9]+(?:\.[0-9]+)?)\s*%/);
+        if (match) {
+          const val = parseFloat(match[1]);
+          if (!isNaN(val) && val > 0 && val <= 100) {
+            labels.push(labelText);
+            dataValues.push(val);
+            break;
+          }
+        }
+      }
+    });
+
+    if (labels.length >= 2 && dataValues.length >= 2) {
+      const card = document.createElement("div");
+      card.className = "chart-card";
+
+      const title = document.createElement("div");
+      title.className = "chart-card-title";
+      title.textContent = "📊 Target Allocation Breakdown";
+      card.appendChild(title);
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "chart-wrapper";
+      const canvas = document.createElement("canvas");
+      wrapper.appendChild(canvas);
+      card.appendChild(wrapper);
+
+      // Insert chart right after the allocation table
+      table.parentNode.insertBefore(card, table.nextSibling);
+
+      const palette = [
+        "#3b82f6", // blue
+        "#10b981", // emerald
+        "#f59e0b", // amber
+        "#8b5cf6", // purple
+        "#06b6d4", // cyan
+        "#ec4899", // pink
+        "#f97316"  // orange
+      ];
+
+      new Chart(canvas, {
+        type: "doughnut",
+        data: {
+          labels: labels,
+          datasets: [{
+            data: dataValues,
+            backgroundColor: palette.slice(0, labels.length),
+            borderColor: "#1e293b",
+            borderWidth: 2,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "right",
+              labels: {
+                color: "#e2e8f0",
+                font: { size: 11, family: "'Inter', sans-serif" },
+                padding: 10,
+                boxWidth: 12,
+                boxHeight: 12
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return ` ${ctx.label}: ${ctx.raw}%`;
+                }
+              }
+            }
+          },
+          cutout: "65%"
+        }
+      });
+    }
+  });
+}
 </script>
 </body>
 </html>
